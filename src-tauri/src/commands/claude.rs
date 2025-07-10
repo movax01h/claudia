@@ -909,6 +909,42 @@ pub async fn load_session_history(
 
 
 
+/// Ensures the model preference is set in project settings for inheritance by sub-processes
+async fn ensure_model_preference_in_settings(project_path: &str, model: &str) -> Result<(), String> {
+    let claude_dir = std::path::Path::new(project_path).join(".claude");
+    let settings_path = claude_dir.join("settings.json");
+    
+    // Create .claude directory if it doesn't exist
+    if !claude_dir.exists() {
+        std::fs::create_dir_all(&claude_dir)
+            .map_err(|e| format!("Failed to create .claude directory: {}", e))?;
+        log::info!("Created .claude directory at: {:?}", claude_dir);
+    }
+    
+    // Read existing settings or create new ones
+    let mut settings = if settings_path.exists() {
+        let existing_content = std::fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read existing settings.json: {}", e))?;
+        serde_json::from_str::<serde_json::Value>(&existing_content)
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Add/update model preference to ensure sub-processes inherit the correct model
+    settings["model"] = serde_json::Value::String(model.to_string());
+    
+    // Write the updated settings file
+    let settings_content = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    std::fs::write(&settings_path, settings_content)
+        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+    
+    log::info!("Updated settings.json with model '{}' at: {:?}", model, settings_path);
+    Ok(())
+}
+
 /// Execute a new interactive Claude Code session with streaming output
 #[tauri::command]
 pub async fn execute_claude_code(
@@ -922,6 +958,9 @@ pub async fn execute_claude_code(
         project_path,
         model
     );
+
+    // Ensure model preference is set in project settings for sub-process inheritance
+    ensure_model_preference_in_settings(&project_path, &model).await?;
 
     let claude_path = find_claude_binary(&app)?;
     
@@ -953,6 +992,9 @@ pub async fn continue_claude_code(
         project_path,
         model
     );
+
+    // Ensure model preference is set in project settings for sub-process inheritance
+    ensure_model_preference_in_settings(&project_path, &model).await?;
 
     let claude_path = find_claude_binary(&app)?;
     
@@ -987,6 +1029,9 @@ pub async fn resume_claude_code(
         project_path,
         model
     );
+
+    // Ensure model preference is set in project settings for sub-process inheritance
+    ensure_model_preference_in_settings(&project_path, &model).await?;
 
     let claude_path = find_claude_binary(&app)?;
     

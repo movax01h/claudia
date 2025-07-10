@@ -695,41 +695,45 @@ pub async fn execute_agent(
     let agent = get_agent(db.clone(), agent_id).await?;
     let execution_model = model.unwrap_or(agent.model.clone());
     
-    // Create .claude/settings.json with agent hooks if it doesn't exist
-    if let Some(hooks_json) = &agent.hooks {
-        let claude_dir = std::path::Path::new(&project_path).join(".claude");
-        let settings_path = claude_dir.join("settings.json");
-        
-        // Create .claude directory if it doesn't exist
-        if !claude_dir.exists() {
-            std::fs::create_dir_all(&claude_dir)
-                .map_err(|e| format!("Failed to create .claude directory: {}", e))?;
-            info!("Created .claude directory at: {:?}", claude_dir);
-        }
-        
-        // Check if settings.json already exists
-        if !settings_path.exists() {
-            // Parse the hooks JSON
-            let hooks: serde_json::Value = serde_json::from_str(hooks_json)
-                .map_err(|e| format!("Failed to parse agent hooks: {}", e))?;
-            
-            // Create a settings object with just the hooks
-            let settings = serde_json::json!({
-                "hooks": hooks
-            });
-            
-            // Write the settings file
-            let settings_content = serde_json::to_string_pretty(&settings)
-                .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-            
-            std::fs::write(&settings_path, settings_content)
-                .map_err(|e| format!("Failed to write settings.json: {}", e))?;
-            
-            info!("Created settings.json with agent hooks at: {:?}", settings_path);
-        } else {
-            info!("settings.json already exists at: {:?}", settings_path);
-        }
+    // Create or update .claude/settings.json with agent hooks and model preference
+    let claude_dir = std::path::Path::new(&project_path).join(".claude");
+    let settings_path = claude_dir.join("settings.json");
+    
+    // Create .claude directory if it doesn't exist
+    if !claude_dir.exists() {
+        std::fs::create_dir_all(&claude_dir)
+            .map_err(|e| format!("Failed to create .claude directory: {}", e))?;
+        info!("Created .claude directory at: {:?}", claude_dir);
     }
+    
+    // Read existing settings or create new ones
+    let mut settings = if settings_path.exists() {
+        let existing_content = std::fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read existing settings.json: {}", e))?;
+        serde_json::from_str::<serde_json::Value>(&existing_content)
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Add/update model preference to ensure sub-agents inherit the correct model
+    settings["model"] = serde_json::Value::String(execution_model.clone());
+    
+    // Add hooks if provided
+    if let Some(hooks_json) = &agent.hooks {
+        let hooks: serde_json::Value = serde_json::from_str(hooks_json)
+            .map_err(|e| format!("Failed to parse agent hooks: {}", e))?;
+        settings["hooks"] = hooks;
+    }
+    
+    // Write the updated settings file
+    let settings_content = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    std::fs::write(&settings_path, settings_content)
+        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+    
+    info!("Updated settings.json with model '{}' and hooks at: {:?}", execution_model, settings_path);
 
     // Create a new run record
     let run_id = {
