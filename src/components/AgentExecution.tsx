@@ -498,6 +498,9 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
     let markdown = `# Agent Execution: ${agent.name}\n\n`;
     markdown += `**Task:** ${task}\n`;
     markdown += `**Model:** ${model === 'opus' ? 'Claude 4 Opus' : 'Claude 4 Sonnet'}\n`;
+    if (agent.extended_thinking) {
+      markdown += `**Extended Thinking:** Enabled\n`;
+    }
     markdown += `**Date:** ${new Date().toISOString()}\n\n`;
     markdown += `---\n\n`;
 
@@ -564,25 +567,54 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
   return (
     <div className={cn("flex flex-col h-full bg-background", className)}>
       {/* Fixed container that takes full height */}
-      <div className="h-full flex flex-col bg-background">
-        {/* Header */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBackWithConfirmation}
-                className="h-9 w-9 -ml-2"
-                title="Back"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-heading-1">{agent.name}</h1>
-                <p className="mt-1 text-body-small text-muted-foreground">
-                  {isRunning ? 'Running' : messages.length > 0 ? 'Complete' : 'Ready'} • {model === 'opus' ? 'Claude 4 Opus' : 'Claude 4 Sonnet'}
-                </p>
+      <div className="h-full flex flex-col">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-background border-b border-border">
+          <div className="w-full max-w-5xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleBackWithConfirmation}
+                    className="h-8 w-8"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">
+                      {renderIcon()}
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-bold">Execute: {agent.name}</h1>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{model === 'opus' ? 'Claude 4 Opus' : 'Claude 4 Sonnet'}</span>
+                        {agent.extended_thinking && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Extended Thinking
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsFullscreenModalOpen(true)}
+                    disabled={messages.length === 0}
+                  >
+                    <Maximize2 className="h-4 w-4 mr-2" />
+                    Fullscreen
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

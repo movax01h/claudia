@@ -119,6 +119,7 @@ export interface Agent {
   system_prompt: string;
   default_task?: string;
   model: string;
+  extended_thinking?: boolean;
   hooks?: string; // JSON string of HooksConfiguration
   created_at: string;
   updated_at: string;
@@ -133,6 +134,7 @@ export interface AgentExport {
     system_prompt: string;
     default_task?: string;
     model: string;
+    extended_thinking?: boolean;
     hooks?: string;
   };
 }
@@ -699,6 +701,7 @@ export const api = {
    * @param system_prompt - The system prompt for the agent
    * @param default_task - Optional default task
    * @param model - Optional model (defaults to 'sonnet')
+   * @param extended_thinking - Enable extended thinking mode
    * @param hooks - Optional hooks configuration as JSON string
    * @returns Promise resolving to the created agent
    */
@@ -708,6 +711,7 @@ export const api = {
     system_prompt: string, 
     default_task?: string, 
     model?: string,
+    extended_thinking?: boolean,
     hooks?: string
   ): Promise<Agent> {
     try {
@@ -717,6 +721,7 @@ export const api = {
         systemPrompt: system_prompt,
         defaultTask: default_task,
         model,
+        extendedThinking: extended_thinking,
         hooks
       });
     } catch (error) {
@@ -733,6 +738,7 @@ export const api = {
    * @param system_prompt - The updated system prompt
    * @param default_task - Optional default task
    * @param model - Optional model
+   * @param extended_thinking - Enable extended thinking mode
    * @param hooks - Optional hooks configuration as JSON string
    * @returns Promise resolving to the updated agent
    */
@@ -743,6 +749,7 @@ export const api = {
     system_prompt: string, 
     default_task?: string, 
     model?: string,
+    extended_thinking?: boolean,
     hooks?: string
   ): Promise<Agent> {
     try {
@@ -753,6 +760,7 @@ export const api = {
         systemPrompt: system_prompt,
         defaultTask: default_task,
         model,
+        extendedThinking: extended_thinking,
         hooks
       });
     } catch (error) {

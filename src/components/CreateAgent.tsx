@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Toast, ToastContainer } from "@/components/ui/toast";
 import { api, type Agent } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
   const [systemPrompt, setSystemPrompt] = useState(agent?.system_prompt || "");
   const [defaultTask, setDefaultTask] = useState(agent?.default_task || "");
   const [model, setModel] = useState(agent?.model || "sonnet");
+  const [extendedThinking, setExtendedThinking] = useState(agent?.extended_thinking || false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -78,7 +80,8 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
           selectedIcon, 
           systemPrompt, 
           defaultTask || undefined, 
-          model
+          model,
+          extendedThinking
         );
       } else {
         await api.createAgent(
@@ -86,7 +89,8 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
           selectedIcon, 
           systemPrompt, 
           defaultTask || undefined, 
-          model
+          model,
+          extendedThinking
         );
       }
       
@@ -108,7 +112,8 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
          selectedIcon !== (agent?.icon || "bot") || 
          systemPrompt !== (agent?.system_prompt || "") ||
          defaultTask !== (agent?.default_task || "") ||
-         model !== (agent?.model || "sonnet")) && 
+         model !== (agent?.model || "sonnet") ||
+         extendedThinking !== (agent?.extended_thinking || false)) && 
         !confirm("You have unsaved changes. Are you sure you want to leave?")) {
       return;
     }
@@ -293,6 +298,25 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
             {/* Configuration */}
             <Card className="p-5">
               <h3 className="text-heading-4 mb-4">Configuration</h3>
+              
+              {/* Extended Thinking */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="extended-thinking">Extended Thinking</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Show Claude's reasoning process and step-by-step thinking
+                    </p>
+                  </div>
+                  <Switch
+                    id="extended-thinking"
+                    checked={extendedThinking}
+                    onCheckedChange={setExtendedThinking}
+                  />
+                </div>
+              </div>
+
+              {/* Default Task */}
               <div className="space-y-2">
                 <Label htmlFor="default-task" className="text-caption text-muted-foreground">Default Task (Optional)</Label>
                 <Input
