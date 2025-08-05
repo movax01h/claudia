@@ -250,6 +250,34 @@ html {
   --color-green-600: oklch(0.47 0.27 142);
 }
 
+/* Solarized Light Theme */
+.theme-solarized-light {
+  /* Solarized base colors converted to oklch */
+  --color-background: oklch(0.97 0.02 85);    /* base3: #fdf6e3 */
+  --color-foreground: oklch(0.53 0.05 195);   /* base00: #657b83 */
+  --color-card: oklch(0.94 0.02 85);          /* base2: #eee8d5 */
+  --color-card-foreground: oklch(0.53 0.05 195);
+  --color-popover: oklch(0.97 0.02 85);
+  --color-popover-foreground: oklch(0.53 0.05 195);
+  --color-primary: oklch(0.56 0.05 195);      /* base0: #839496 */
+  --color-primary-foreground: oklch(0.97 0.02 85);
+  --color-secondary: oklch(0.91 0.02 85);     /* slightly darker than base2 */
+  --color-secondary-foreground: oklch(0.53 0.05 195);
+  --color-muted: oklch(0.91 0.02 85);
+  --color-muted-foreground: oklch(0.60 0.04 195); /* base1: #93a1a1 */
+  --color-accent: oklch(0.91 0.02 85);
+  --color-accent-foreground: oklch(0.53 0.05 195);
+  --color-destructive: oklch(0.55 0.22 25);   /* Solarized red tone */
+  --color-destructive-foreground: oklch(0.97 0.02 85);
+  --color-border: oklch(0.87 0.02 85);        /* darker than base2 */
+  --color-input: oklch(0.87 0.02 85);
+  --color-ring: oklch(0.56 0.05 195);
+  
+  /* Additional colors for status messages with Solarized green */
+  --color-green-500: oklch(0.60 0.15 120);   /* Solarized green */
+  --color-green-600: oklch(0.52 0.17 120);
+}
+
 /* Custom Theme - CSS variables will be set dynamically by ThemeContext */
 .theme-custom {
   /* Custom theme variables are applied dynamically via JavaScript */

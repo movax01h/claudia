@@ -409,63 +409,26 @@ export const Settings: React.FC<SettingsProps> = ({
                   
                   <div className="space-y-4">
                     {/* Theme Selector */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Theme</Label>
-                        <p className="text-caption text-muted-foreground mt-1">
-                          Choose your preferred color theme
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-lg">
-                        <button
-                          onClick={() => setTheme('dark')}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                            theme === 'dark' 
-                              ? "bg-background shadow-sm" 
-                              : "hover:bg-background/50"
-                          )}
-                        >
-                          {theme === 'dark' && <Check className="h-3 w-3" />}
-                          Dark
-                        </button>
-                        <button
-                          onClick={() => setTheme('gray')}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                            theme === 'gray' 
-                              ? "bg-background shadow-sm" 
-                              : "hover:bg-background/50"
-                          )}
-                        >
-                          {theme === 'gray' && <Check className="h-3 w-3" />}
-                          Gray
-                        </button>
-                        <button
-                          onClick={() => setTheme('light')}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                            theme === 'light' 
-                              ? "bg-background shadow-sm" 
-                              : "hover:bg-background/50"
-                          )}
-                        >
-                          {theme === 'light' && <Check className="h-3 w-3" />}
-                          Light
-                        </button>
-                        <button
-                          onClick={() => setTheme('custom')}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                            theme === 'custom' 
-                              ? "bg-background shadow-sm" 
-                              : "hover:bg-background/50"
-                          )}
-                        >
-                          {theme === 'custom' && <Check className="h-3 w-3" />}
-                          Custom
-                        </button>
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="theme">Theme</Label>
+                      <Select
+                        value={theme}
+                        onValueChange={(value) => setTheme(value as any)}
+                      >
+                        <SelectTrigger id="theme" className="w-full">
+                          <SelectValue placeholder="Select a theme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dark">Dark</SelectItem>
+                          <SelectItem value="gray">Gray</SelectItem>
+                          <SelectItem value="light">Light</SelectItem>
+                          <SelectItem value="solarized-light">Solarized Light</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Choose your preferred color theme for the interface
+                      </p>
                     </div>
                     
                     {/* Custom Color Editor */}

@@ -61,6 +61,19 @@ export const getClaudeSyntaxTheme = (theme: ThemeMode): any => {
       variable: '#6d28d9', // Dark Violet
       operator: '#374151',
     },
+'solarized-light': {
+      base: '#657b83',        // Solarized base00 
+      background: 'transparent',
+      comment: '#93a1a1',     // Solarized base1 (comments)
+      punctuation: '#586e75', // Solarized base01
+      property: '#b58900',    // Solarized yellow
+      tag: '#6c71c4',         // Solarized violet
+      string: '#859900',      // Solarized green
+      function: '#268bd2',    // Solarized blue
+      keyword: '#d33682',     // Solarized magenta
+      variable: '#cb4b16',    // Solarized orange
+      operator: '#586e75',    // Solarized base01
+    },
     custom: {
       // Default to dark theme colors for custom
       base: '#e3e8f0',
@@ -68,7 +81,7 @@ export const getClaudeSyntaxTheme = (theme: ThemeMode): any => {
       comment: '#6b7280',
       punctuation: '#9ca3af',
       property: '#f59e0b',
-      tag: '#8b5cf6',
+      tag: '#8b5cf6',  
       string: '#10b981',
       function: '#818cf8',
       keyword: '#c084fc',
