@@ -480,6 +480,28 @@ pub fn create_command_with_env(program: &str) -> Command {
         }
     }
     
+    // Explicitly set NODE environment variable to point to Homebrew node
+    // This fixes the "env: node: No such file or directory" error when running from GUI
+    let node_path = "/opt/homebrew/bin/node";
+    if std::path::Path::new(node_path).exists() {
+        cmd.env("NODE", node_path);
+        info!("Set NODE environment variable to: {}", node_path);
+    } else {
+        // Fallback to other common node locations
+        let fallback_paths = [
+            "/usr/local/bin/node",  // Homebrew on Intel
+            "/usr/bin/node",        // System node
+        ];
+        
+        for fallback in &fallback_paths {
+            if std::path::Path::new(fallback).exists() {
+                cmd.env("NODE", fallback);
+                info!("Set NODE environment variable to fallback: {}", fallback);
+                break;
+            }
+        }
+    }
+    
     // Log proxy-related environment variables for debugging
     info!("Command will use proxy settings:");
     if let Ok(http_proxy) = std::env::var("HTTP_PROXY") {

@@ -251,6 +251,28 @@ fn create_command_with_env(program: &str) -> Command {
         }
     }
 
+    // Explicitly set NODE environment variable to point to Homebrew node
+    // This fixes the "env: node: No such file or directory" error when running from GUI
+    let node_path = "/opt/homebrew/bin/node";
+    if std::path::Path::new(node_path).exists() {
+        tokio_cmd.env("NODE", node_path);
+        log::info!("Set NODE environment variable to: {}", node_path);
+    } else {
+        // Fallback to other common node locations
+        let fallback_paths = [
+            "/usr/local/bin/node",  // Homebrew on Intel
+            "/usr/bin/node",        // System node
+        ];
+        
+        for fallback in &fallback_paths {
+            if std::path::Path::new(fallback).exists() {
+                tokio_cmd.env("NODE", fallback);
+                log::info!("Set NODE environment variable to fallback: {}", fallback);
+                break;
+            }
+        }
+    }
+
     // Add NVM support if the program is in an NVM directory
     if program.contains("/.nvm/versions/node/") {
         if let Some(node_bin_dir) = std::path::Path::new(program).parent() {
