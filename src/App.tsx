@@ -25,6 +25,7 @@ import { TabContent } from "@/components/TabContent";
 import { useTabState } from "@/hooks/useTabState";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsent";
 import { useAppLifecycle, useTrackEvent } from "@/hooks";
+import { logger } from "@/utils/logger";
 
 type View = 
   | "welcome" 
@@ -153,10 +154,13 @@ function AppContent() {
     try {
       setLoading(true);
       setError(null);
+      logger.info('Loading projects from ~/.claude/projects', 'App');
       const projectList = await api.listProjects();
       setProjects(projectList);
+      logger.info(`Successfully loaded ${projectList.length} projects`, 'App');
     } catch (err) {
       console.error("Failed to load projects:", err);
+      logger.error('Failed to load projects', 'App', err instanceof Error ? err : new Error(String(err)));
       setError("Failed to load projects. Please ensure ~/.claude directory exists.");
     } finally {
       setLoading(false);
@@ -175,6 +179,7 @@ function AppContent() {
       setSelectedProject(project);
     } catch (err) {
       console.error("Failed to load sessions:", err);
+      logger.error(`Failed to load sessions for project ${project.id}`, 'App', err instanceof Error ? err : new Error(String(err)));
       setError("Failed to load sessions for this project.");
     } finally {
       setLoading(false);

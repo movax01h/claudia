@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { logger, logNetworkRequest } from "@/utils/logger";
 import type { HooksConfiguration } from '@/types/hooks';
 
 /** Process type for tracking in ProcessRegistry */
@@ -468,10 +469,17 @@ export const api = {
    * @returns Promise resolving to an array of projects
    */
   async listProjects(): Promise<Project[]> {
+    const startTime = performance.now();
     try {
-      return await invoke<Project[]>("list_projects");
+      logger.debug('Fetching projects list', 'API');
+      const result = await invoke<Project[]>("list_projects");
+      await logNetworkRequest('INVOKE', 'list_projects', 200, performance.now() - startTime);
+      logger.info(`Loaded ${result.length} projects`, 'API');
+      return result;
     } catch (error) {
       console.error("Failed to list projects:", error);
+      await logNetworkRequest('INVOKE', 'list_projects', 500, performance.now() - startTime, error instanceof Error ? error : undefined);
+      logger.error('Failed to list projects', 'API', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   },
@@ -496,10 +504,17 @@ export const api = {
    * @returns Promise resolving to an array of sessions
    */
   async getProjectSessions(projectId: string): Promise<Session[]> {
+    const startTime = performance.now();
     try {
-      return await invoke<Session[]>('get_project_sessions', { projectId });
+      logger.debug(`Fetching sessions for project ${projectId}`, 'API');
+      const result = await invoke<Session[]>('get_project_sessions', { projectId });
+      await logNetworkRequest('INVOKE', 'get_project_sessions', 200, performance.now() - startTime);
+      logger.info(`Loaded ${result.length} sessions for project ${projectId}`, 'API');
+      return result;
     } catch (error) {
       console.error("Failed to get project sessions:", error);
+      await logNetworkRequest('INVOKE', 'get_project_sessions', 500, performance.now() - startTime, error instanceof Error ? error : undefined);
+      logger.error(`Failed to get sessions for project ${projectId}`, 'API', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   },
@@ -848,10 +863,17 @@ export const api = {
    * @returns Promise resolving to the run ID when execution starts
    */
   async executeAgent(agentId: number, projectPath: string, task: string, model?: string): Promise<number> {
+    const startTime = performance.now();
     try {
-      return await invoke<number>('execute_agent', { agentId, projectPath, task, model });
+      logger.info(`Executing agent ${agentId} with task: ${task.substring(0, 100)}...`, 'API');
+      const result = await invoke<number>('execute_agent', { agentId, projectPath, task, model });
+      await logNetworkRequest('INVOKE', 'execute_agent', 200, performance.now() - startTime);
+      logger.info(`Agent ${agentId} execution started with run ID: ${result}`, 'API');
+      return result;
     } catch (error) {
       console.error("Failed to execute agent:", error);
+      await logNetworkRequest('INVOKE', 'execute_agent', 500, performance.now() - startTime, error instanceof Error ? error : undefined);
+      logger.error(`Failed to execute agent ${agentId}`, 'API', error instanceof Error ? error : new Error(String(error)));
       // Return a sentinel value to indicate error
       throw new Error(`Failed to execute agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

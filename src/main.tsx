@@ -23,7 +23,7 @@ import { AnalyticsErrorBoundary } from "./components/AnalyticsErrorBoundary";
 import { analytics, resourceMonitor } from "./lib/analytics";
 import { PostHogProvider } from "posthog-js/react";
 import { abortManager } from "./utils/abortManager";
-import { setupErrorHandling, logger } from "./utils/logger";
+import { setupErrorHandling, logger, clearOldLogsFromStorage } from "./utils/logger";
 import "./assets/shimmer.css";
 import "./styles.css";
 
@@ -31,15 +31,22 @@ import "./styles.css";
 console.log('Starting Claudia application');
 try {
   setupErrorHandling();
-  logger.info('Application starting up', 'Main').catch(() => {}); // Non-blocking
   
-  // Test logging explicitly
+  // Initial log
+  logger.info('Application starting up', 'Main').catch((err) => {
+    console.error('Initial logging failed:', err);
+  });
+  
+  // Clean up old logs from localStorage on startup
+  clearOldLogsFromStorage(7); // Keep logs for 7 days
+  
+  // Test logging after a short delay to ensure Tauri is ready
   setTimeout(() => {
-    console.log('Testing logger explicitly...');
-    logger.info('Test log entry from main.tsx', 'Test').catch((error) => {
-      console.error('Logger test failed:', error);
+    logger.info('Application initialized successfully', 'Main').catch((err) => {
+      console.error('Delayed logging failed:', err);
     });
-  }, 1000);
+  }, 500);
+  
 } catch (error) {
   console.error('Failed to initialize logging system:', error);
   // Continue without logging - don't block the app
@@ -66,6 +73,11 @@ resourceMonitor.startMonitoring(120000);
 setInterval(() => {
   abortManager.cleanup();
 }, 60000);
+
+// Clean up old logs from localStorage daily
+setInterval(() => {
+  clearOldLogsFromStorage(7);
+}, 24 * 60 * 60 * 1000);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
