@@ -2,6 +2,7 @@ import React, { Component, ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { logger } from "@/utils/logger";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -28,8 +29,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log the error to console
+    // Log the error to console and file
     console.error("Error caught by boundary:", error, errorInfo);
+    
+    // Log to file system with detailed context (non-blocking)
+    logger.error(
+      `React Error Boundary caught error: ${error.message}`,
+      'ErrorBoundary',
+      new Error(`${error.message}
+
+Component Stack: ${errorInfo.componentStack}
+
+Error Stack: ${error.stack}`)
+    ).catch(() => {}); // Silent fail to prevent secondary errors
   }
 
   reset = () => {

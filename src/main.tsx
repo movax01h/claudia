@@ -23,8 +23,27 @@ import { AnalyticsErrorBoundary } from "./components/AnalyticsErrorBoundary";
 import { analytics, resourceMonitor } from "./lib/analytics";
 import { PostHogProvider } from "posthog-js/react";
 import { abortManager } from "./utils/abortManager";
+import { setupErrorHandling, logger } from "./utils/logger";
 import "./assets/shimmer.css";
 import "./styles.css";
+
+// Initialize logging system first (don't let it block startup)
+console.log('Starting Claudia application');
+try {
+  setupErrorHandling();
+  logger.info('Application starting up', 'Main').catch(() => {}); // Non-blocking
+  
+  // Test logging explicitly
+  setTimeout(() => {
+    console.log('Testing logger explicitly...');
+    logger.info('Test log entry from main.tsx', 'Test').catch((error) => {
+      console.error('Logger test failed:', error);
+    });
+  }, 1000);
+} catch (error) {
+  console.error('Failed to initialize logging system:', error);
+  // Continue without logging - don't block the app
+}
 
 // Initialize analytics before rendering
 analytics.initialize();

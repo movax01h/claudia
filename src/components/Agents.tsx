@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Loader2, Play, Clock, CheckCircle, XCircle, Trash2, Import, ChevronDown, ChevronRight, FileJson, Globe, Download, Plus, History } from 'lucide-react';
+import { Bot, Loader2, Play, Clock, CheckCircle, XCircle, Trash2, Import, ChevronDown, ChevronRight, FileJson, Globe, Download, Plus, History, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ import { useTabState } from '@/hooks/useTabState';
 export const Agents: React.FC = () => {
   const [activeTab, setActiveTab] = useState('agents');
   const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [agentToEdit, setAgentToEdit] = useState<Agent | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [runningAgents, setRunningAgents] = useState<AgentRunWithMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +104,11 @@ export const Agents: React.FC = () => {
     }
   };
 
+  const handleEditAgent = (agent: Agent) => {
+    setAgentToEdit(agent);
+    setShowCreateAgent(true);
+  };
+
   const handleDeleteAgent = async () => {
     if (!agentToDelete || !agentToDelete.id) return;
     
@@ -178,14 +184,19 @@ export const Agents: React.FC = () => {
     }
   };
 
-  // Show CreateAgent component if creating
+  // Show CreateAgent component if creating/editing
   if (showCreateAgent) {
     return (
       <CreateAgent 
-        onBack={() => setShowCreateAgent(false)}
+        agent={agentToEdit || undefined}
+        onBack={() => {
+          setShowCreateAgent(false);
+          setAgentToEdit(null);
+        }}
         onAgentCreated={() => {
           setShowCreateAgent(false);
-          loadAgents(); // Reload agents after creation
+          setAgentToEdit(null);
+          loadAgents(); // Reload agents after creation/update
         }}
       />
     );
@@ -354,6 +365,10 @@ export const Agents: React.FC = () => {
                             <DropdownMenuItem onClick={() => handleRunAgent(agent)}>
                               <Play className="w-4 h-4 mr-2" />
                               Run
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditAgent(agent)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleExportAgent(agent)}>
                               <Download className="w-4 h-4 mr-2" />

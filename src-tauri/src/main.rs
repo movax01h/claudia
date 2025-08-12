@@ -5,8 +5,10 @@ mod checkpoint;
 mod claude_binary;
 mod commands;
 mod process;
+mod logging;
 
 use checkpoint::state::CheckpointState;
+use commands::logging::{write_log_entry, LogState};
 use commands::agents::{
     cleanup_finished_processes, create_agent, delete_agent, execute_agent, export_agent,
     export_agent_to_file, fetch_github_agent_content, fetch_github_agents, get_agent,
@@ -52,16 +54,64 @@ use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 
 fn main() {
-    // Initialize logger
-    env_logger::init();
+    // Initialize comprehensive logging system
+    let project_root = logging::get_project_root();
+    println!("Initializing logging with project root: {:?}", project_root);
+    
+    if let Err(e) = logging::init_logging(project_root) {
+        eprintln!("Failed to initialize logging: {}", e);
+        // Fallback to simple env_logger
+        env_logger::init();
+    } else {
+        println!("Logging initialized successfully");
+    }
+
+    // Fix PATH for macOS app bundles to include common Node.js locations
+    #[cfg(target_os = "macos")]
+    {
+        let current_path = std::env::var("PATH").unwrap_or_default();
+        let common_paths = vec![
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+        ];
+
+        let mut new_path_parts = vec![];
+        for path in &common_paths {
+            if std::path::Path::new(path).exists() && !current_path.contains(path) {
+                new_path_parts.push(path.to_string());
+            }
+        }
+
+        if !new_path_parts.is_empty() {
+            new_path_parts.push(current_path);
+            let enhanced_path = new_path_parts.join(":");
+            std::env::set_var("PATH", &enhanced_path);
+            log::info!("Enhanced PATH for macOS app bundle: {}", enhanced_path);
+        }
+    }
 
 
+    log::info!("Starting Claudia application");
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            println!("Setting up Tauri application");
+            log::info!("Setting up Tauri application");
             // Initialize agents database
-            let conn = init_database(&app.handle()).expect("Failed to initialize agents database");
+            let conn = match init_database(&app.handle()) {
+                Ok(conn) => {
+                    println!("Successfully initialized agents database");
+                    log::info!("Successfully initialized agents database");
+                    conn
+                },
+                Err(e) => {
+                    eprintln!("Failed to initialize agents database: {}", e);
+                    log::error!("Failed to initialize agents database: {}", e);
+                    panic!("Database initialization failed: {}", e);
+                }
+            };
             
             // Load and apply proxy settings from the database
             {
@@ -110,7 +160,18 @@ fn main() {
             }
             
             // Re-open the connection for the app to manage
-            let conn = init_database(&app.handle()).expect("Failed to initialize agents database");
+            let conn = match init_database(&app.handle()) {
+                Ok(conn) => {
+                    println!("Successfully re-opened database connection for app management");
+                    log::debug!("Successfully re-opened database connection for app management");
+                    conn
+                },
+                Err(e) => {
+                    eprintln!("Failed to re-open database connection: {}", e);
+                    log::error!("Failed to re-open database connection: {}", e);
+                    panic!("Database re-initialization failed: {}", e);
+                }
+            };
             app.manage(AgentDb(Mutex::new(conn)));
 
             // Initialize checkpoint state
@@ -139,6 +200,9 @@ fn main() {
 
             // Initialize Claude process state
             app.manage(ClaudeProcessState::default());
+
+            // Initialize logging state for frontend
+            app.manage(LogState::default());
 
             // Apply window vibrancy with rounded corners on macOS
             #[cfg(target_os = "macos")]
@@ -284,7 +348,14 @@ fn main() {
             // Proxy Settings
             get_proxy_settings,
             save_proxy_settings,
+            
+            // Frontend Logging
+            write_log_entry,
         ])
         .run(tauri::generate_context!())
+        .map_err(|e| {
+            log::error!("Failed to run Tauri application: {}", e);
+            e
+        })
         .expect("error while running tauri application");
 }

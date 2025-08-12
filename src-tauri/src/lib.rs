@@ -4,6 +4,7 @@
 pub mod checkpoint;
 pub mod claude_binary;
 pub mod commands;
+pub mod logging;
 pub mod process;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
