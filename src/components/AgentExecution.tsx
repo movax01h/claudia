@@ -125,6 +125,11 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
   const elapsedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [runId, setRunId] = useState<number | null>(null);
 
+  // Render appropriate icon for agent
+  const renderIcon = () => {
+    return <Terminal className="h-4 w-4" />;
+  };
+
   // Filter out messages that shouldn't be displayed
   const displayableMessages = React.useMemo(() => {
     return messages.filter((message, index) => {
@@ -616,7 +621,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                   </Button>
                 </div>
               </div>
-            </div>
+            </motion.div>
             <div className="flex items-center gap-2">
               {messages.length > 0 && (
                 <Button

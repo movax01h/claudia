@@ -565,7 +565,6 @@ pub fn create_command_with_env(program: &str) -> Command {
         debug!("Enhanced PATH: {}", enhanced_path);
         cmd.env("PATH", enhanced_path);
     }
-    }
 
     cmd
 }
