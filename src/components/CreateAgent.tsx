@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save, Loader2, ChevronDown, Zap, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, ChevronDown, Zap, AlertCircle, Folder, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import MDEditor from "@uiw/react-md-editor";
 import { type AgentIconName } from "./CCAgents";
 import { IconPicker, ICON_MAP } from "./IconPicker";
+import { FilePicker } from "./FilePicker";
 
 
 interface CreateAgentProps {
@@ -49,12 +50,15 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
   const [selectedIcon, setSelectedIcon] = useState<AgentIconName>((agent?.icon as AgentIconName) || "bot");
   const [systemPrompt, setSystemPrompt] = useState(agent?.system_prompt || "");
   const [defaultTask, setDefaultTask] = useState(agent?.default_task || "");
+  const [defaultProjectPath, setDefaultProjectPath] = useState(agent?.default_project_path || "");
   const [model, setModel] = useState(agent?.model || "sonnet");
   const [extendedThinking, setExtendedThinking] = useState(agent?.extended_thinking || false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [homeDirectory, setHomeDirectory] = useState<string>("/");
 
   const isEditMode = !!agent;
 
@@ -80,6 +84,7 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
           selectedIcon, 
           systemPrompt, 
           defaultTask || undefined, 
+          defaultProjectPath || undefined,
           model,
           extendedThinking
         );
@@ -89,6 +94,7 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
           selectedIcon, 
           systemPrompt, 
           defaultTask || undefined, 
+          defaultProjectPath || undefined,
           model,
           extendedThinking
         );
@@ -112,12 +118,30 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
          selectedIcon !== (agent?.icon || "bot") || 
          systemPrompt !== (agent?.system_prompt || "") ||
          defaultTask !== (agent?.default_task || "") ||
+         defaultProjectPath !== (agent?.default_project_path || "") ||
          model !== (agent?.model || "sonnet") ||
          extendedThinking !== (agent?.extended_thinking || false)) && 
         !confirm("You have unsaved changes. Are you sure you want to leave?")) {
       return;
     }
     onBack();
+  };
+
+  const handleOpenProjectPicker = async () => {
+    const homeDir = await api.getHomeDirectory();
+    setHomeDirectory(homeDir);
+    setShowProjectPicker(true);
+  };
+
+  const handleProjectSelect = (entry: any) => {
+    if (entry.is_directory) {
+      setDefaultProjectPath(entry.path);
+    }
+    setShowProjectPicker(false);
+  };
+
+  const clearDefaultProjectPath = () => {
+    setDefaultProjectPath("");
   };
 
   return (
@@ -330,6 +354,56 @@ export const CreateAgent: React.FC<CreateAgentProps> = ({
                 <p className="text-caption text-muted-foreground">
                   This will be used as the default task placeholder when executing the agent
                 </p>
+              </div>
+
+              {/* Default Project Path */}
+              <div className="space-y-2">
+                <Label className="text-caption text-muted-foreground">Default Project Path (Optional)</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={defaultProjectPath}
+                      onChange={(e) => setDefaultProjectPath(e.target.value)}
+                      placeholder="Select project directory..."
+                      className="h-9 pr-8"
+                      readOnly={showProjectPicker}
+                    />
+                    {defaultProjectPath && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearDefaultProjectPath}
+                        className="absolute right-1 top-1 h-7 w-7 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleOpenProjectPicker}
+                    className="h-9 px-3"
+                  >
+                    <Folder className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-caption text-muted-foreground">
+                  When set, the agent will run in this directory without prompting for project selection
+                </p>
+                
+                {/* Project Picker */}
+                {showProjectPicker && (
+                  <div className="relative">
+                    <FilePicker
+                      basePath={homeDirectory}
+                      onSelect={handleProjectSelect}
+                      onClose={() => setShowProjectPicker(false)}
+                      className="relative bottom-auto left-auto mb-0 w-full"
+                    />
+                  </div>
+                )}
               </div>
             </Card>
 

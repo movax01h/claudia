@@ -119,6 +119,7 @@ export interface Agent {
   icon: string;
   system_prompt: string;
   default_task?: string;
+  default_project_path?: string;
   model: string;
   extended_thinking?: boolean;
   hooks?: string; // JSON string of HooksConfiguration
@@ -134,6 +135,7 @@ export interface AgentExport {
     icon: string;
     system_prompt: string;
     default_task?: string;
+    default_project_path?: string;
     model: string;
     extended_thinking?: boolean;
     hooks?: string;
@@ -715,6 +717,7 @@ export const api = {
    * @param icon - The icon identifier
    * @param system_prompt - The system prompt for the agent
    * @param default_task - Optional default task
+   * @param default_project_path - Optional default project path
    * @param model - Optional model (defaults to 'sonnet')
    * @param extended_thinking - Enable extended thinking mode
    * @param hooks - Optional hooks configuration as JSON string
@@ -725,6 +728,7 @@ export const api = {
     icon: string, 
     system_prompt: string, 
     default_task?: string, 
+    default_project_path?: string,
     model?: string,
     extended_thinking?: boolean,
     hooks?: string
@@ -735,6 +739,7 @@ export const api = {
         icon, 
         systemPrompt: system_prompt,
         defaultTask: default_task,
+        defaultProjectPath: default_project_path,
         model,
         extendedThinking: extended_thinking,
         hooks
@@ -752,6 +757,7 @@ export const api = {
    * @param icon - The updated icon
    * @param system_prompt - The updated system prompt
    * @param default_task - Optional default task
+   * @param default_project_path - Optional default project path
    * @param model - Optional model
    * @param extended_thinking - Enable extended thinking mode
    * @param hooks - Optional hooks configuration as JSON string
@@ -763,6 +769,7 @@ export const api = {
     icon: string, 
     system_prompt: string, 
     default_task?: string, 
+    default_project_path?: string,
     model?: string,
     extended_thinking?: boolean,
     hooks?: string
@@ -774,6 +781,7 @@ export const api = {
         icon, 
         systemPrompt: system_prompt,
         defaultTask: default_task,
+        defaultProjectPath: default_project_path,
         model,
         extendedThinking: extended_thinking,
         hooks

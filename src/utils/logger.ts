@@ -15,7 +15,7 @@ interface LogEntry {
 }
 
 class Logger {
-  private logFileName: string;
+  private logFileName!: string;
   private isInitialized: boolean = false;
   private isInitializing: boolean = false;
   private pendingLogs: LogEntry[] = [];

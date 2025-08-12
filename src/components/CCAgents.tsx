@@ -277,6 +277,7 @@ export const CCAgents: React.FC<CCAgentsProps> = ({ onBack, className }) => {
     return (
       <AgentExecution
         agent={selectedAgent}
+        projectPath={selectedAgent.default_project_path}
         onBack={() => {
           setView("list");
           handleExecutionComplete();

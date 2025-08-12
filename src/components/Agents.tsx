@@ -75,20 +75,37 @@ export const Agents: React.FC = () => {
       return;
     }
     
-    // Import the dialog function
-    const { open } = await import('@tauri-apps/plugin-dialog');
+    console.log('Running agent from Agents.tsx:', {
+      agentId: agent.id,
+      agentName: agent.name,
+      defaultProjectPath: agent.default_project_path,
+    });
     
     try {
-      // Prompt user to select a project directory
-      const projectPath = await open({
-        directory: true,
-        multiple: false,
-        title: `Select project directory for ${agent.name}`
-      });
+      let projectPath = agent.default_project_path;
       
+      // Only open directory picker if agent doesn't have a default project path
       if (!projectPath) {
-        // User cancelled
-        return;
+        console.log('No default project path, opening directory picker');
+        // Import the dialog function
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        
+        // Prompt user to select a project directory
+        const selectedPath = await open({
+          directory: true,
+          multiple: false,
+          title: `Select project directory for ${agent.name}`
+        });
+        
+        if (!selectedPath) {
+          // User cancelled
+          return;
+        }
+        
+        projectPath = selectedPath as string;
+        console.log('User selected project path:', projectPath);
+      } else {
+        console.log('Using default project path:', projectPath);
       }
       
       // Dispatch event to open agent execution in a new tab

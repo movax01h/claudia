@@ -11,7 +11,8 @@ import {
   ChevronDown,
   Maximize2,
   X,
-  Settings2
+  Settings2,
+  Folder
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { ExecutionControlBar } from "./ExecutionControlBar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { HooksEditor } from "./HooksEditor";
+import { FilePicker } from "./FilePicker";
 import { useTrackEvent, useComponentMetrics, useFeatureAdoptionTracking } from "@/hooks";
 import { useTabState } from "@/hooks/useTabState";
 
@@ -88,10 +90,21 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
   onBack,
   className,
 }) => {
-  const [projectPath] = useState(initialProjectPath || "");
+  // Initialize project path from props or agent defaults
+  const defaultProjectPath = initialProjectPath || agent.default_project_path || "";
+  const [projectPath, setProjectPath] = useState(defaultProjectPath);
   const [task, setTask] = useState(agent.default_task || "");
   const [model, setModel] = useState(agent.model || "sonnet");
   const [isRunning, setIsRunning] = useState(false);
+  
+  // Log initialization for debugging
+  console.log("AgentExecution initialized with:", {
+    agentName: agent.name,
+    initialProjectPath,
+    agentDefaultPath: agent.default_project_path,
+    resolvedDefaultPath: defaultProjectPath,
+    currentProjectPath: projectPath
+  });
   
   // Get tab state functions
   const { updateTabStatus } = useTabState();
@@ -108,6 +121,10 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
   // Hooks configuration state
   const [isHooksDialogOpen, setIsHooksDialogOpen] = useState(false);
   const [activeHooksTab, setActiveHooksTab] = useState("project");
+  
+  // Project path selection state - don't automatically show picker
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [homeDirectory, setHomeDirectory] = useState<string>("/");
 
   // Execution stats
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
@@ -282,13 +299,44 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
   }, [messages]);
 
 
-  // Project path selection is handled upstream when opening an execution tab
+  // Home directory is loaded on demand when user clicks to select project
 
   const handleOpenHooksDialog = async () => {
     setIsHooksDialogOpen(true);
   };
 
+  const handleProjectSelect = (entry: any) => {
+    if (entry.is_directory) {
+      setProjectPath(entry.path);
+      setShowProjectPicker(false);
+    }
+  };
+
+  const handleOpenProjectPicker = async () => {
+    const homeDir = await api.getHomeDirectory();
+    setHomeDirectory(homeDir);
+    setShowProjectPicker(true);
+  };
+
   const handleExecute = async () => {
+    // Ensure we have a valid project path before executing
+    const executionPath = projectPath || defaultProjectPath;
+    
+    console.log("Attempting to execute agent with:", {
+      agentId: agent.id,
+      agentName: agent.name,
+      projectPath,
+      defaultProjectPath,
+      executionPath,
+      task,
+      model
+    });
+    
+    if (!executionPath) {
+      setError("Please select a project directory before executing");
+      return;
+    }
+    
     try {
       setIsRunning(true);
       // Update tab status to running
@@ -306,7 +354,8 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
       unlistenRefs.current = [];
       
       // Execute the agent and get the run ID
-      const executionRunId = await api.executeAgent(agent.id!, projectPath, task, model);
+      console.log("Calling api.executeAgent with path:", executionPath);
+      const executionRunId = await api.executeAgent(agent.id!, executionPath, task, model);
       console.log("Agent execution started with run ID:", executionRunId);
       setRunId(executionRunId);
       
@@ -720,11 +769,27 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
               </div>
             </div>
 
+            {/* Project Path Selection - Only show if no default path AND no selected path */}
+            {!defaultProjectPath && !projectPath && (
+              <div className="space-y-3">
+                <Label className="text-caption text-muted-foreground">Select Project Directory</Label>
+                <div className="p-4 border border-border rounded-md bg-muted/10">
+                  <p className="text-body-small text-muted-foreground mb-3">
+                    This agent doesn't have a default project path configured. Please select a directory to run the agent in:
+                  </p>
+                  <Button onClick={handleOpenProjectPicker} className="w-full justify-center">
+                    <Folder className="mr-2 h-4 w-4" />
+                    Select Project Directory
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Task Input */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-caption text-muted-foreground">Task Description</Label>
-                {projectPath && (
+                {(projectPath || defaultProjectPath) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -742,10 +807,10 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                   value={task}
                   onChange={(e) => setTask(e.target.value)}
                   placeholder="What would you like the agent to do?"
-                  disabled={isRunning}
+                  disabled={isRunning || !(projectPath || defaultProjectPath)}
                   className="flex-1 h-9"
                   onKeyPress={(e) => {
-                    if (e.key === "Enter" && !isRunning && projectPath && task.trim()) {
+                    if (e.key === "Enter" && !isRunning && (projectPath || defaultProjectPath) && task.trim()) {
                       handleExecute();
                     }
                   }}
@@ -756,7 +821,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                 >
                   <Button
                     onClick={isRunning ? handleStop : handleExecute}
-                    disabled={!projectPath || !task.trim()}
+                    disabled={!(projectPath || defaultProjectPath) || !task.trim()}
                     variant={isRunning ? "destructive" : "default"}
                     size="default"
                   >
@@ -774,10 +839,22 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                   </Button>
                 </motion.div>
               </div>
-              {projectPath && (
-                <p className="text-caption text-muted-foreground">
-                  Working in: <span className="font-mono">{projectPath.split('/').pop() || projectPath}</span>
-                </p>
+              {(projectPath || defaultProjectPath) && (
+                <div className="flex items-center justify-between">
+                  <p className="text-caption text-muted-foreground">
+                    Working in: <span className="font-mono">{(projectPath || defaultProjectPath).split('/').pop() || (projectPath || defaultProjectPath)}</span>
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleOpenProjectPicker}
+                    disabled={isRunning}
+                    className="h-6 px-2 -mr-2"
+                  >
+                    <Folder className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Change</span>
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -1029,7 +1106,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                   </p>
                 </div>
                 <HooksEditor
-                  projectPath={projectPath}
+                  projectPath={projectPath || defaultProjectPath}
                   scope="project"
                   className="border-0"
                 />
@@ -1045,7 +1122,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
                   </p>
                 </div>
                 <HooksEditor
-                  projectPath={projectPath}
+                  projectPath={projectPath || defaultProjectPath}
                   scope="local"
                   className="border-0"
                 />
@@ -1054,6 +1131,40 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Project Selection Dialog */}
+      {showProjectPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl h-[600px] bg-background border rounded-lg shadow-lg">
+            <div className="p-4 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Select Project Directory</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose the directory where the agent should run
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowProjectPicker(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="p-4 h-[500px]">
+              <FilePicker
+                basePath={homeDirectory}
+                onSelect={handleProjectSelect}
+                onClose={() => setShowProjectPicker(false)}
+                className="relative bottom-auto left-auto mb-0 w-full h-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

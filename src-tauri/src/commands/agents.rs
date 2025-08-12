@@ -29,6 +29,7 @@ pub struct Agent {
     pub icon: String,
     pub system_prompt: String,
     pub default_task: Option<String>,
+    pub default_project_path: Option<String>,
     pub model: String,
     pub enable_file_read: bool,
     pub enable_file_write: bool,
@@ -90,6 +91,7 @@ pub struct AgentData {
     pub icon: String,
     pub system_prompt: String,
     pub default_task: Option<String>,
+    pub default_project_path: Option<String>,
     pub model: String,
     pub extended_thinking: bool,
     pub hooks: Option<String>,
@@ -269,6 +271,10 @@ pub fn init_database(app: &AppHandle) -> SqliteResult<Connection> {
         "ALTER TABLE agents ADD COLUMN extended_thinking BOOLEAN DEFAULT 0",
         [],
     );
+    let _ = conn.execute(
+        "ALTER TABLE agents ADD COLUMN default_project_path TEXT",
+        [],
+    );
 
     // Create agent_runs table
     conn.execute(
@@ -359,7 +365,7 @@ pub async fn list_agents(db: State<'_, AgentDb>) -> Result<Vec<Agent>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT id, name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents ORDER BY created_at DESC")
+        .prepare("SELECT id, name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let agents = stmt
@@ -370,16 +376,17 @@ pub async fn list_agents(db: State<'_, AgentDb>) -> Result<Vec<Agent>, String> {
                 icon: row.get(2)?,
                 system_prompt: row.get(3)?,
                 default_task: row.get(4)?,
+                default_project_path: row.get(5)?,
                 model: row
-                    .get::<_, String>(5)
+                    .get::<_, String>(6)
                     .unwrap_or_else(|_| "sonnet".to_string()),
-                enable_file_read: row.get::<_, bool>(6).unwrap_or(true),
-                enable_file_write: row.get::<_, bool>(7).unwrap_or(true),
-                enable_network: row.get::<_, bool>(8).unwrap_or(false),
-                extended_thinking: row.get::<_, bool>(9).unwrap_or(false),
-                hooks: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+                enable_file_read: row.get::<_, bool>(7).unwrap_or(true),
+                enable_file_write: row.get::<_, bool>(8).unwrap_or(true),
+                enable_network: row.get::<_, bool>(9).unwrap_or(false),
+                extended_thinking: row.get::<_, bool>(10).unwrap_or(false),
+                hooks: row.get(11)?,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -397,6 +404,7 @@ pub async fn create_agent(
     icon: String,
     system_prompt: String,
     default_task: Option<String>,
+    default_project_path: Option<String>,
     model: Option<String>,
     enable_file_read: Option<bool>,
     enable_file_write: Option<bool>,
@@ -412,8 +420,8 @@ pub async fn create_agent(
     let extended_thinking = extended_thinking.unwrap_or(false);
 
     conn.execute(
-        "INSERT INTO agents (name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks],
+        "INSERT INTO agents (name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks],
     )
     .map_err(|e| e.to_string())?;
 
@@ -422,7 +430,7 @@ pub async fn create_agent(
     // Fetch the created agent
     let agent = conn
         .query_row(
-            "SELECT id, name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
+            "SELECT id, name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Agent {
@@ -431,14 +439,15 @@ pub async fn create_agent(
                     icon: row.get(2)?,
                     system_prompt: row.get(3)?,
                     default_task: row.get(4)?,
-                    model: row.get(5)?,
-                    enable_file_read: row.get(6)?,
-                    enable_file_write: row.get(7)?,
-                    enable_network: row.get(8)?,
-                    extended_thinking: row.get(9)?,
-                    hooks: row.get(10)?,
-                    created_at: row.get(11)?,
-                    updated_at: row.get(12)?,
+                    default_project_path: row.get(5)?,
+                    model: row.get(6)?,
+                    enable_file_read: row.get(7)?,
+                    enable_file_write: row.get(8)?,
+                    enable_network: row.get(9)?,
+                    extended_thinking: row.get(10)?,
+                    hooks: row.get(11)?,
+                    created_at: row.get(12)?,
+                    updated_at: row.get(13)?,
                 })
             },
         )
@@ -456,6 +465,7 @@ pub async fn update_agent(
     icon: String,
     system_prompt: String,
     default_task: Option<String>,
+    default_project_path: Option<String>,
     model: Option<String>,
     enable_file_read: Option<bool>,
     enable_file_write: Option<bool>,
@@ -468,17 +478,18 @@ pub async fn update_agent(
 
     // Build dynamic query based on provided parameters
     let mut query =
-        "UPDATE agents SET name = ?1, icon = ?2, system_prompt = ?3, default_task = ?4, model = ?5, hooks = ?6"
+        "UPDATE agents SET name = ?1, icon = ?2, system_prompt = ?3, default_task = ?4, default_project_path = ?5, model = ?6, hooks = ?7"
             .to_string();
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = vec![
         Box::new(name),
         Box::new(icon),
         Box::new(system_prompt),
         Box::new(default_task),
+        Box::new(default_project_path),
         Box::new(model),
         Box::new(hooks),
     ];
-    let mut param_count = 6;
+    let mut param_count = 7;
 
     if let Some(efr) = enable_file_read {
         param_count += 1;
@@ -514,7 +525,7 @@ pub async fn update_agent(
     // Fetch the updated agent
     let agent = conn
         .query_row(
-            "SELECT id, name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
+            "SELECT id, name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Agent {
@@ -523,14 +534,15 @@ pub async fn update_agent(
                     icon: row.get(2)?,
                     system_prompt: row.get(3)?,
                     default_task: row.get(4)?,
-                    model: row.get(5)?,
-                    enable_file_read: row.get(6)?,
-                    enable_file_write: row.get(7)?,
-                    enable_network: row.get(8)?,
-                    extended_thinking: row.get(9)?,
-                    hooks: row.get(10)?,
-                    created_at: row.get(11)?,
-                    updated_at: row.get(12)?,
+                    default_project_path: row.get(5)?,
+                    model: row.get(6)?,
+                    enable_file_read: row.get(7)?,
+                    enable_file_write: row.get(8)?,
+                    enable_network: row.get(9)?,
+                    extended_thinking: row.get(10)?,
+                    hooks: row.get(11)?,
+                    created_at: row.get(12)?,
+                    updated_at: row.get(13)?,
                 })
             },
         )
@@ -557,7 +569,7 @@ pub async fn get_agent(db: State<'_, AgentDb>, id: i64) -> Result<Agent, String>
 
     let agent = conn
         .query_row(
-            "SELECT id, name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
+            "SELECT id, name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Agent {
@@ -566,14 +578,15 @@ pub async fn get_agent(db: State<'_, AgentDb>, id: i64) -> Result<Agent, String>
                     icon: row.get(2)?,
                     system_prompt: row.get(3)?,
                     default_task: row.get(4)?,
-                    model: row.get::<_, String>(5).unwrap_or_else(|_| "sonnet".to_string()),
-                    enable_file_read: row.get::<_, bool>(6).unwrap_or(true),
-                    enable_file_write: row.get::<_, bool>(7).unwrap_or(true),
-                    enable_network: row.get::<_, bool>(8).unwrap_or(false),
-                    extended_thinking: row.get::<_, bool>(9).unwrap_or(false),
-                    hooks: row.get(10)?,
-                    created_at: row.get(11)?,
-                    updated_at: row.get(12)?,
+                    default_project_path: row.get(5)?,
+                    model: row.get::<_, String>(6).unwrap_or_else(|_| "sonnet".to_string()),
+                    enable_file_read: row.get::<_, bool>(7).unwrap_or(true),
+                    enable_file_write: row.get::<_, bool>(8).unwrap_or(true),
+                    enable_network: row.get::<_, bool>(9).unwrap_or(false),
+                    extended_thinking: row.get::<_, bool>(10).unwrap_or(false),
+                    hooks: row.get(11)?,
+                    created_at: row.get(12)?,
+                    updated_at: row.get(13)?,
                 })
             },
         )
@@ -1753,7 +1766,7 @@ pub async fn export_agent(db: State<'_, AgentDb>, id: i64) -> Result<String, Str
     // Fetch the agent
     let agent = conn
         .query_row(
-            "SELECT name, icon, system_prompt, default_task, model, extended_thinking, hooks FROM agents WHERE id = ?1",
+            "SELECT name, icon, system_prompt, default_task, default_project_path, model, extended_thinking, hooks FROM agents WHERE id = ?1",
             params![id],
             |row| {
                 Ok(serde_json::json!({
@@ -1761,9 +1774,10 @@ pub async fn export_agent(db: State<'_, AgentDb>, id: i64) -> Result<String, Str
                     "icon": row.get::<_, String>(1)?,
                     "system_prompt": row.get::<_, String>(2)?,
                     "default_task": row.get::<_, Option<String>>(3)?,
-                    "model": row.get::<_, String>(4)?,
-                    "extended_thinking": row.get::<_, bool>(5)?,
-                    "hooks": row.get::<_, Option<String>>(6)?
+                    "default_project_path": row.get::<_, Option<String>>(4)?,
+                    "model": row.get::<_, String>(5)?,
+                    "extended_thinking": row.get::<_, bool>(6)?,
+                    "hooks": row.get::<_, Option<String>>(7)?
                 }))
             },
         )
@@ -1977,12 +1991,13 @@ pub async fn import_agent(db: State<'_, AgentDb>, json_data: String) -> Result<A
 
     // Create the agent
     conn.execute(
-        "INSERT INTO agents (name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks) VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 0, ?6, ?7)",
+        "INSERT INTO agents (name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, 1, 0, ?7, ?8)",
         params![
             final_name,
             agent_data.icon,
             agent_data.system_prompt,
             agent_data.default_task,
+            agent_data.default_project_path,
             agent_data.model,
             agent_data.extended_thinking,
             agent_data.hooks
@@ -1995,7 +2010,7 @@ pub async fn import_agent(db: State<'_, AgentDb>, json_data: String) -> Result<A
     // Fetch the created agent
     let agent = conn
         .query_row(
-            "SELECT id, name, icon, system_prompt, default_task, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
+            "SELECT id, name, icon, system_prompt, default_task, default_project_path, model, enable_file_read, enable_file_write, enable_network, extended_thinking, hooks, created_at, updated_at FROM agents WHERE id = ?1",
             params![id],
             |row| {
                 Ok(Agent {
@@ -2004,14 +2019,15 @@ pub async fn import_agent(db: State<'_, AgentDb>, json_data: String) -> Result<A
                     icon: row.get(2)?,
                     system_prompt: row.get(3)?,
                     default_task: row.get(4)?,
-                    model: row.get(5)?,
-                    enable_file_read: row.get(6)?,
-                    enable_file_write: row.get(7)?,
-                    enable_network: row.get(8)?,
-                    extended_thinking: row.get(9)?,
-                    hooks: row.get(10)?,
-                    created_at: row.get(11)?,
-                    updated_at: row.get(12)?,
+                    default_project_path: row.get(5)?,
+                    model: row.get(6)?,
+                    enable_file_read: row.get(7)?,
+                    enable_file_write: row.get(8)?,
+                    enable_network: row.get(9)?,
+                    extended_thinking: row.get(10)?,
+                    hooks: row.get(11)?,
+                    created_at: row.get(12)?,
+                    updated_at: row.get(13)?,
                 })
             },
         )
