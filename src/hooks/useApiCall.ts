@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createManagedAbortController, abortManager } from '../utils/abortManager';
 
 interface ApiCallOptions {
   onSuccess?: (data: any) => void;
@@ -43,26 +44,27 @@ export function useApiCall<T>(
   const call = useCallback(
     async (...args: any[]): Promise<T | null> => {
       try {
-        // Cancel any pending request
+        // Cancel any pending request and clean up the controller
         if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
+          abortManager.abort(abortControllerRef.current);
+          abortControllerRef.current = null;
         }
 
-        // Create new abort controller
-        abortControllerRef.current = new AbortController();
+        // Create new managed abort controller
+        const abortController = createManagedAbortController();
+        abortControllerRef.current = abortController;
 
         setIsLoading(true);
         setError(null);
 
         const result = await apiFunction(...args);
 
-        // Only update state if component is still mounted
-        if (!isMountedRef.current) return null;
+        // Only update state if component is still mounted and request wasn't aborted
+        if (!isMountedRef.current || abortController.signal.aborted) return null;
 
         setData(result);
         
         if (showSuccessToast) {
-          // TODO: Implement toast notification
           console.log('Success:', successMessage);
         }
 
@@ -81,14 +83,13 @@ export function useApiCall<T>(
         setError(error);
 
         if (showErrorToast) {
-          // TODO: Implement toast notification
           console.error('Error:', errorMessage || error.message);
         }
 
         onError?.(error);
         return null;
       } finally {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && abortControllerRef.current) {
           setIsLoading(false);
         }
       }
@@ -100,14 +101,23 @@ export function useApiCall<T>(
     setData(null);
     setError(null);
     setIsLoading(false);
+    
+    // Also cancel any pending requests when resetting
+    if (abortControllerRef.current) {
+      abortManager.abort(abortControllerRef.current);
+      abortControllerRef.current = null;
+    }
   }, []);
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+        abortManager.abort(abortControllerRef.current);
+        abortControllerRef.current = null;
       }
     };
   }, []);
