@@ -172,28 +172,43 @@ impl AgentRunMetrics {
 }
 
 /// Read JSONL content from a session file
-pub async fn read_session_jsonl(session_id: &str, project_path: &str) -> Result<String, String> {
+pub async fn read_session_jsonl(session_id: &str, _project_path: &str) -> Result<String, String> {
     let claude_dir = dirs::home_dir()
         .ok_or("Failed to get home directory")?
         .join(".claude")
         .join("projects");
 
-    // Encode project path to match Claude Code's directory naming
-    let encoded_project = project_path.replace('/', "-");
-    let project_dir = claude_dir.join(&encoded_project);
-    let session_file = project_dir.join(format!("{}.jsonl", session_id));
+    if session_id.is_empty() {
+        return Err("Session ID is empty".to_string());
+    }
 
-    if !session_file.exists() {
+    if !claude_dir.exists() {
         return Err(format!(
-            "Session file not found: {}",
-            session_file.display()
+            "Claude projects directory not found: {}",
+            claude_dir.display()
         ));
     }
 
-    match tokio::fs::read_to_string(&session_file).await {
-        Ok(content) => Ok(content),
-        Err(e) => Err(format!("Failed to read session file: {}", e)),
+    // Search for the session file in all project directories instead of using path encoding
+    debug!("Searching for session file {} in all project directories", session_id);
+    
+    if let Ok(entries) = std::fs::read_dir(&claude_dir) {
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if path.is_dir() {
+                let potential_session_file = path.join(format!("{}.jsonl", session_id));
+                if potential_session_file.exists() {
+                    debug!("Found session file at: {:?}", potential_session_file);
+                    return match tokio::fs::read_to_string(&potential_session_file).await {
+                        Ok(content) => Ok(content),
+                        Err(e) => Err(format!("Failed to read session file: {}", e)),
+                    };
+                }
+            }
+        }
     }
+
+    Err(format!("Session file not found for session: {}", session_id))
 }
 
 /// Get agent run with real-time metrics
